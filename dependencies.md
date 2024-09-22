@@ -1,4 +1,6 @@
-## Dependencies
+# Dependencies
+
+This is a list of all internal (RepoDynamics) and external (third-party) dependencies of each RepoDynamics package:
 
 - **ANSI-SGR**:
   - Internals: `ProtocolMan`
