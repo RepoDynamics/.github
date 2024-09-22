@@ -134,7 +134,6 @@ if __name__ == "__main__":
             '.archived',
             'DocsMan',
             'FixMan',
-            'MarkItUp',
             'MetaTemplates',
             'PyPackIT',
             'PyPackIT-Template',
