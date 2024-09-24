@@ -172,6 +172,11 @@ class OrgReposManager:
             pyproject_path = self.get_path(project_name) / self._rel_path_pyproject
             pyproject_str = _ps.write.to_toml_string(project["pyproject"])
             pyproject_path.write_text(pyproject_str)
+            dependencies = project["pyproject"]["project"].get("dependencies")
+            if dependencies:
+                requirements = "\n".join(dependencies)
+                requirements_path = pyproject_path.with_name("requirements.txt")
+                requirements_path.write_text(requirements)
             if mode == "apply":
                 continue
             git = self.get_git(project_name)
