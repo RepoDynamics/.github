@@ -11,7 +11,7 @@ import pdep as _pdep
 from loggerman import logger as _logger
 
 if _TYPE_CHECKING:
-    from typing import Sequence
+    from typing import Sequence, Literal
 
 
 def from_directory(
@@ -71,16 +71,18 @@ class OrgReposManager:
             }
         return
 
-    def bump_pinned_dev_versions(self, dist_names: Sequence[str] | None = None):
+    def bump_pinned_dev_versions(
+        self,
+        dist_names: Sequence[str] | None = None,
+        mode: Literal["report", "apply", "commit", "push"] = "report",
+        commit_msg: str = "Release version {version}",
+    ) -> dict[str, dict]:
 
         def process_project(dist_name_norm: str, bump: bool) -> None:
             projects[dist_name_norm] = {
                 "pyproject": _copy.deepcopy(self.get_pyproject(dist_name_norm)),
                 "bump": bump,
-                "deps": [
-                    _pdep.normalize_distribution_name(dep)
-                    for dep in self.get_dependencies(dist_name_norm)
-                ],
+                "deps": self.get_dependencies(dist_name_norm),
             }
             return
 
@@ -88,6 +90,11 @@ class OrgReposManager:
             semver = _PEP440SemVer(version)
             dev_num = semver.dev
             return f"0.0.0.dev{dev_num + 1}"
+
+        if mode not in ["report", "apply", "commit", "push"]:
+            raise ValueError(
+                f"Invalid mode '{mode}'. Must be one of 'report', 'apply', 'commit', or 'push'."
+            )
 
         projects = {}
 
@@ -101,12 +108,12 @@ class OrgReposManager:
             process_project(dist_name_unchanged, False)
         for project_name, project in projects.items():
             # Filter out third-party and excluded dependencies
-            project_deps = project[project_name]["deps"]
-            project[project_name]["deps"] = [dep for dep in project_deps if dep in projects]
+            project_deps = project["deps"]
+            project["deps"] = [dep for dep in project_deps if dep in projects]
         exhausted = False
         counter = 1
         while not exhausted:
-            _logger.section(f"Scan 1")
+            _logger.section(f"Scan {counter}")
             a_dep_needs_bump = False
             for dist_name, project in projects.items():
                 for dep in project["deps"]:
@@ -117,9 +124,14 @@ class OrgReposManager:
                         )
                         a_dep_needs_bump = True
                         project["bump"] = True
-            _logger.section_end()
             if not a_dep_needs_bump:
                 exhausted = True
+                _logger.info(
+                    "Exhausted",
+                    "No more dependencies to bump.",
+                )
+            _logger.section_end()
+            counter += 1
         _logger.section("Bump Project Versions")
         for project_name, project in projects.items():
             if project["bump"]:
@@ -140,21 +152,33 @@ class OrgReposManager:
                 for idx, spec in enumerate(project["pyproject"]["project"]["dependencies"]):
                     if _pdep.normalize_distribution_name(_Req(spec).name) == dep:
                         dep_version = projects[dep]["pyproject"]["project"]["version"]
-                        spec_new = f"{self.get_name(dep)} == {bump_version(dep_version)}"
+                        spec_new = f"{self.get_name(dep)} == {dep_version}"
                         project["pyproject"]["project"]["dependencies"][idx] = spec_new
                         _logger.info(
                             dep,
-                            f"- Package: {project_name}"
+                            f"- Package: {project_name}",
                             f"- Current: {spec}",
                             f"- New: {spec_new}",
                         )
                         break
         _logger.section_end()
         assert set(projects.keys()) == set(self.projects.keys())
-        for project_name, project in projects:
+        for project_name, project in projects.items():
             if not project["bump"]:
-                assert project["pyproject"] == self.projects[project_name]
-
+                assert project["pyproject"] == self.projects[project_name]["pyproject"]
+                continue
+            if mode == "report":
+                continue
+            pyproject_path = self.get_path(project_name) / self._rel_path_pyproject
+            pyproject_str = _ps.write.to_toml_string(project["pyproject"])
+            pyproject_path.write_text(pyproject_str)
+            if mode == "apply":
+                continue
+            git = self.get_git(project_name)
+            git.commit(commit_msg.format(version=project["pyproject"]["project"]["version"]))
+            if mode == "commit":
+                continue
+            git.push()
         return projects
 
     def get_dependents(self, dist_name: str):
@@ -175,7 +199,7 @@ class OrgReposManager:
             project["git"] = _gittidy.Git(path=self.get_path(dist_name), logger=_logger)
         return project["git"]
 
-    def get_path(self, dist_name: str):
+    def get_path(self, dist_name: str) -> _Path:
         return self.get_project(dist_name)["path"]
 
     def get_pyproject(self, dist_name: str):
@@ -184,9 +208,10 @@ class OrgReposManager:
     def get_version(self, dist_name: str):
         return self.get_pyproject(dist_name)["project"]["version"]
 
-    def get_dependencies(self, dist_name: str):
+    def get_dependencies(self, dist_name: str, normalize: bool = True):
+        transformer = _pdep.normalize_distribution_name if normalize else lambda x: x
         return [
-            _Req(dep).name for dep in self.get_pyproject(dist_name)["project"].get("dependencies", [])
+            transformer(_Req(dep).name) for dep in self.get_pyproject(dist_name)["project"].get("dependencies", [])
         ]
 
     def get_name(self, dist_name: str):
