@@ -24,12 +24,14 @@ def from_directory(
         'PyPackIT',
         'PyPackIT-Template',
         'PyPackIT-Template(ORIG DATA)',
-        'PyTests',
         'SphinxDocs',
-        '_OrganizationRepo(.github)'
+        '_OrganizationRepo(.github)',
+        'BinderDocker',
     ),
-    rel_path_pyproject: str = "pyproject.toml",
-    rel_path_src: str = "src",
+    rel_path_pyproject_default: str = "pyproject.toml",
+    rel_path_src_default: str = "src",
+    rel_path_pyproject: dict[str, str] | None = None,
+    rel_path_src: dict[str, str] | None = None,
 ):
     dirs = [d for d in _Path(path).iterdir() if d.is_dir()]
     dir_names = [d.name for d in dirs]
@@ -45,6 +47,8 @@ def from_directory(
     )
     return OrgReposManager(
         repo_paths=selected_dirs,
+        rel_path_pyproject_default=rel_path_pyproject_default,
+        rel_path_src_default=rel_path_src_default,
         rel_path_pyproject=rel_path_pyproject,
         rel_path_src=rel_path_src,
     )
@@ -55,17 +59,23 @@ class OrgReposManager:
     def __init__(
         self,
         repo_paths: Sequence[_Path],
-        rel_path_pyproject: str = "pyproject.toml",
-        rel_path_src: str = "src",
+        rel_path_pyproject_default: str = "pyproject.toml",
+        rel_path_src_default: str = "src",
+        rel_path_pyproject: dict[str, str] | None = None,
+        rel_path_src: dict[str, str] | None = None,
     ):
-        self._rel_path_pyproject = rel_path_pyproject
-        self._rel_path_src = rel_path_src
+        self._rel_path_pyproject_default = rel_path_pyproject_default
+        self._rel_path_src_default = rel_path_src_default
+        self._rel_path_pyproject = rel_path_pyproject or {}
+        self._rel_path_src = rel_path_src or {}
         self.projects: dict[str, dict] = {}
         for path in repo_paths:
-            pyproject = _ps.read.toml_from_file(path / self._rel_path_pyproject, as_dict=False)
+            path_pyproject = path / self._rel_path_pyproject.get(path.name, self._rel_path_pyproject_default)
+            pyproject = _ps.read.toml_from_file(path_pyproject, as_dict=False)
             normalized_dist_name = _pdep.normalize_distribution_name(pyproject["project"]["name"])
             self.projects[normalized_dist_name] = {
                 "path": path,
+                "path_pyproject": path_pyproject,
                 "pyproject": pyproject,
                 "git": None,
             }
@@ -169,7 +179,7 @@ class OrgReposManager:
                 continue
             if mode == "report":
                 continue
-            pyproject_path = self.get_path(project_name) / self._rel_path_pyproject
+            pyproject_path = self.get_pyproject_path(project_name)
             pyproject_str = _ps.write.to_toml_string(project["pyproject"])
             pyproject_path.write_text(pyproject_str)
             dependencies = project["pyproject"]["project"].get("dependencies")
@@ -206,6 +216,9 @@ class OrgReposManager:
 
     def get_path(self, dist_name: str) -> _Path:
         return self.get_project(dist_name)["path"]
+
+    def get_pyproject_path(self, dist_name: str) -> _Path:
+        return self.get_project(dist_name)["path_pyproject"]
 
     def get_pyproject(self, dist_name: str):
         return self.get_project(dist_name)["pyproject"]
