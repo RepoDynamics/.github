@@ -14,6 +14,7 @@ OWNER="RepoDynamics"
 LOCAL_PATH="$(pwd)"
 NO_ARCHIVED=""
 SOURCE=""
+IGNORE_REGEX=""
 PULL=true
 VERBOSE=false
 
@@ -31,19 +32,24 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
-    --no-archived)
+    -i|--ignore-regex)
+      IGNORE_REGEX="$2"
+      shift
+      shift
+      ;;
+    -a|--no-archived)
       NO_ARCHIVED="--no-archived"
       shift
       ;;
-    --source)
+    -s|--source)
       SOURCE="--source"
       shift
       ;;
-    --no-pull)
+    -n|--no-pull)
       PULL=false
       shift
       ;;
-    --verbose)
+    -v|--verbose)
       VERBOSE=true
       shift
       ;;
@@ -61,16 +67,17 @@ the remote repository is pulled and rebased into the existing local clone."
       echo "-------------------"
       echo "Usage: $0 [options]"
       echo "Options:"
-      echo "  -o, --owner       GitHub account name (default: RepoDynamics)"
-      echo "  -p, --path        Local directory path for cloning (default: current working directory)"
-      echo "  --no-archived     Exclude archived repositories (default: false)"
-      echo "  --source          Exclude forked repositories (default: false)"
-      echo "  --no-pull         Disable pulling updates for existing repositories (default: false)"
-      echo "  --verbose         Enable verbose output (default: false)"
+      echo "  -o, --owner         GitHub organization or user account (default: RepoDynamics)"
+      echo "  -i, --ignore-regex  Regex pattern to ignore repositories by name"
+      echo "  -a, --no-archived   Exclude archived repositories (default: false)"
+      echo "  -s, --source        Exclude forked repositories (default: false)"
+      echo "  -p, --path          Local directory path for cloning (default: current working directory)"
+      echo "  -n, --no-pull       Disable pulling updates for existing repositories (default: false)"
+      echo "  -v, --verbose       Enable verbose output (default: false)"
       exit 0
       ;;
     *)
-      echo "Unknown parameter: $1"
+      echo "ERROR: Unknown parameter: $1"
       echo "Use -h or --help for usage information."
       exit 1
       ;;
@@ -80,7 +87,7 @@ done
 
 # Ensure GitHub CLI is installed
 if ! command -v gh &> /dev/null; then
-  echo "Error: GitHub CLI (gh) is not installed. Please install it and try again."
+  echo "ERROR: GitHub CLI (gh) is not installed. Please install it and try again."
   exit 1
 fi
 
@@ -88,7 +95,7 @@ fi
 # Create the local directory if it does not exist
 mkdir -p "$LOCAL_PATH"
 cd "$LOCAL_PATH" || {
-  echo "Error: Failed to navigate to directory $LOCAL_PATH."
+  echo "ERROR: Failed to navigate to directory $LOCAL_PATH."
   exit 1
 }
 
@@ -104,10 +111,24 @@ fi
 # List all repositories from the organization and process them.
 # Max `--limit` is 4000.
 # Reference: https://cli.github.com/manual/gh_repo_list
+counter=0
 gh repo list "$OWNER" --limit 4000 $NO_ARCHIVED $SOURCE | while read -r repo _; do
 
+  # Extract repository name from the full repo identifier (org/repo_name)
+  repo_name="$(basename "$repo")"
+
+  counter=$((counter + 1))
+  printf "%4d. %s\n" "$counter" "$repo_name"
+  echo "---------------------------------------"
+
+  # Skip repositories that match the ignore regex
+  if [[ -n "$IGNORE_REGEX" && "$repo_name" =~ $IGNORE_REGEX ]]; then
+    echo "SKIP: Repository $repo matches the ignore regex."
+    continue
+  fi
+
   if [[ -d "$repo" ]]; then
-    echo "Updating existing repository: $repo"
+    echo "UPDATE: Updating existing repository: $repo"
     (
       cd "$repo" || {
         echo "WARNING: Failed to navigate to existing repository directory $repo. Skipping fetch and pull."
@@ -132,12 +153,12 @@ gh repo list "$OWNER" --limit 4000 $NO_ARCHIVED $SOURCE | while read -r repo _; 
         done
         git stash pop $QUIET || true
       else
-        echo "Skipping pull for repository $repo as --no-pull is set."
+        echo "SKIP: Skipping pull for repository $repo as --no-pull is set."
       fi
     )
   else
-    echo "Cloning repository: $repo"
-    GIT_TERMINAL_PROMPT=0 gh repo clone "$repo" "$repo" -- $QUIET || echo "WARNING: Failed to clone $repo. Skipping repository clone."
+    echo "CLONE: $repo"
+    GIT_TERMINAL_PROMPT=0 gh repo clone "$repo" "$repo" -- $QUIET || echo "WARNING: Failed to clone $repo."
   fi
 
 done
