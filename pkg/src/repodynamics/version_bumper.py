@@ -17,7 +17,9 @@ if _TYPE_CHECKING:
 def from_directory(
     path: str | _Path = "/Volumes/T7/Projects/GitHub Repos/RepoDynamics",
     exclude: Sequence[str] | None = (
+        '_OrganizationRepo(.github)',
         '.archived',
+        'BinderDocker',
         'DocsMan',
         'FixMan',
         'MetaTemplates',
@@ -25,8 +27,6 @@ def from_directory(
         'PyPackIT-Template',
         'PyPackIT-Template(ORIG DATA)',
         'SphinxDocs',
-        '_OrganizationRepo(.github)',
-        'BinderDocker',
     ),
     rel_path_pyproject_default: str = "pyproject.toml",
     rel_path_src_default: str = "src",
@@ -235,7 +235,8 @@ class OrgReposManager:
     def get_name(self, dist_name: str):
         return self.get_pyproject(dist_name)["project"]["name"]
 
-    def get_changed_projects(self):
+    def get_changed_projects(self) -> list[str]:
+        """Get the distribution name of projects with staged and unstaged changes in git."""
         changed_projects = []
         for dist_name, project in self.projects.items():
             git = self.get_git(dist_name)

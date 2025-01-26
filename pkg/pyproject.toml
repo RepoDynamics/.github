@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0", "versioningit"]
+build-backend = "setuptools.build_meta"
+
+
+# ----------------------------------------- setuptools -------------------------------------------
+[tool.setuptools]
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = true
+
+
+# ----------------------------------------- Project Metadata -------------------------------------
+[project]
+version = "0.0.1"
+name = "RepoDynamics"
+requires-python = ">=3.10"
+dependencies = [
+    "packaging",
+    "pyserials",
+    "LoggerMan == 0.0.0.dev87",
+    "pdep",
+    "gittidy",
+    "versionman",
+]
