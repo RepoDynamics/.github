@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Clone or pull repositories from a GitHub account.
 
@@ -20,22 +20,19 @@ VERBOSE=false
 
 
 # Parse input parameters
-while [[ $# -gt 0 ]]; do
-  case $1 in
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     -o|--owner)
       OWNER="$2"
-      shift # Remove argument name
-      shift # Remove argument value
+      shift 2
       ;;
     -p|--path)
       LOCAL_PATH="$2"
-      shift
-      shift
+      shift 2
       ;;
     -i|--ignore-regex)
       IGNORE_REGEX="$2"
-      shift
-      shift
+      shift 2
       ;;
     -a|--archived)
       NO_ARCHIVED=""
@@ -87,14 +84,17 @@ done
 
 
 # Ensure GitHub CLI is installed
-if ! command -v gh &> /dev/null; then
+if ! command -v gh >/dev/null 2>&1; then
   echo "ERROR: GitHub CLI (gh) is not installed. Please install it and try again."
   exit 1
 fi
 
 
 # Create the local directory if it does not exist
-mkdir -p "$LOCAL_PATH"
+mkdir -p "$LOCAL_PATH" || {
+  echo "ERROR: Failed to create directory $LOCAL_PATH."
+  exit 1
+}
 cd "$LOCAL_PATH" || {
   echo "ERROR: Failed to navigate to directory $LOCAL_PATH."
   exit 1
@@ -113,24 +113,26 @@ fi
 # Max `--limit` is 4000.
 # Reference: https://cli.github.com/manual/gh_repo_list
 counter=0
-gh repo list "$OWNER" --limit 4000 $NO_ARCHIVED $SOURCE | while read -r repo _; do
+gh repo list "$OWNER" --limit 4000 $NO_ARCHIVED $SOURCE | while IFS= read -r repo_line; do
 
+  repo=$(echo "$repo_line" | awk '{print $1}')
   # Extract repository name from the full repo identifier (org/repo_name)
-  repo_name="$(basename "$repo")"
+  repo_name=$(basename "$repo")
+  # Convert to lowercase
+  repo_lowercase=$(echo "$repo" | tr '[:upper:]' '[:lower:]')
 
   counter=$((counter + 1))
-  printf "%4d. %s\n" "$counter" "$repo_name"
+  echo ""
+  echo "$counter. $repo_name"
   echo "---------------------------------------"
 
   # Skip repositories that match the ignore regex (case-insensitive)
-  if [[ -n "$IGNORE_REGEX" && "$repo_name" =~ (?i)$IGNORE_REGEX ]]; then
+  if [ -n "$IGNORE_REGEX" ] && echo "$repo_name" | grep -qiE "$IGNORE_REGEX"; then
     echo "SKIP: Repository $repo matches the ignore regex."
     continue
   fi
 
-  repo_lowercase="${repo,,}"
-
-  if [[ -d "$repo_lowercase" ]]; then
+  if [ -d "$repo_lowercase" ]; then
     echo "UPDATE: Updating existing repository: $repo"
     (
       cd "$repo_lowercase" || {
@@ -144,7 +146,7 @@ gh repo list "$OWNER" --limit 4000 $NO_ARCHIVED $SOURCE | while read -r repo _; 
       if $PULL; then
         # Rebase all branches that track a remote branch
         git stash $QUIET --include-untracked || true
-        for branch in $(git branch -r | grep -v '\->' | awk '{print $1}' | sed 's/origin\///'); do  # iterate over remote branch names
+        for branch in $(git branch -r | grep -v '\->' | awk '{print $1}' | sed 's|origin/||'); do  # iterate over remote branch names
           git checkout $QUIET "$branch" 2>/dev/null || {
             echo "WARNING: Failed to checkout branch $branch in $repo. Skipping branch pull."
             continue

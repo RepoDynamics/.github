@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Prepare development environment by cloning all repositories
 # and installing packages and dependencies.
@@ -18,22 +18,19 @@ VERBOSE=false
 
 
 # Parse input parameters
-while [[ $# -gt 0 ]]; do
-  case $1 in
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     -o|--owner)
       OWNER="$2"
-      shift # Remove argument name
-      shift # Remove argument value
+      shift 2
       ;;
     -p|--path)
       LOCAL_PATH="$2"
-      shift
-      shift
+      shift 2
       ;;
     -i|--ignore-regex)
       IGNORE_REGEX="$2"
-      shift
-      shift
+      shift 2
       ;;
     -a|--no-archived)
       NO_ARCHIVED="--no-archived"
@@ -83,18 +80,27 @@ done
 
 
 # Run `pull.sh`
-SCRIPT_DIR="$(dirname "$0")"
+SCRIPT_DIR=$(cd "$(dirname "$0")" || { echo "ERROR: Failed to determine script directory."; exit 1; }; pwd)
 PULL_SCRIPT="$SCRIPT_DIR/pull.sh"
 
-if [[ ! -f "$PULL_SCRIPT" ]]; then
+if [ ! -f "$PULL_SCRIPT" ]; then
   echo "ERROR: The script 'pull.sh' is not found in the directory: $SCRIPT_DIR"
   exit 1
 fi
 
-bash "$PULL_SCRIPT" --owner "$OWNER" --path "$LOCAL_PATH" --ignore-regex "$IGNORE_REGEX" $NO_ARCHIVED $SOURCE $( [[ $PULL == false ]] && echo "--no-pull" ) $( [[ $VERBOSE == true ]] && echo "--verbose" )
+PULL_CMD="sh \"$PULL_SCRIPT\" --owner \"$OWNER\" --path \"$LOCAL_PATH\" --ignore-regex \"$IGNORE_REGEX\" $NO_ARCHIVED $SOURCE"
+if [ "$PULL" = false ]; then
+  PULL_CMD="$PULL_CMD --no-pull"
+fi
+if [ "$VERBOSE" = true ]; then
+  PULL_CMD="$PULL_CMD --verbose"
+fi
+
+# Execute the pull script
+sh -c "$PULL_CMD"
 
 # Check if the script succeeded
-if [[ $? -ne 0 ]]; then
+if [ "$?" -ne 0 ]; then
   echo "ERROR: 'pull.sh' script failed. Exiting."
   exit 1
 fi
@@ -103,17 +109,23 @@ fi
 # Run `install.sh`
 INSTALL_SCRIPT="$SCRIPT_DIR/install.sh"
 
-if [[ ! -f "$INSTALL_SCRIPT" ]]; then
+if [ ! -f "$INSTALL_SCRIPT" ]; then
   echo "ERROR: The script 'install.sh' is not found in the directory: $SCRIPT_DIR"
   exit 1
 fi
 
-OWNER_LOWERCASE="${OWNER,,}"
+OWNER_LOWERCASE=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
 
-bash "$INSTALL_SCRIPT" --path "$LOCAL_PATH/$OWNER_LOWERCASE" --ignore-regex "$IGNORE_REGEX" $( [[ $VERBOSE == true ]] && echo "--verbose" )
+INSTALL_CMD="sh \"$INSTALL_SCRIPT\" --path \"$LOCAL_PATH/$OWNER_LOWERCASE\" --ignore-regex \"$IGNORE_REGEX\""
+if [ "$VERBOSE" = true ]; then
+  INSTALL_CMD="$INSTALL_CMD --verbose"
+fi
+
+# Execute the install script
+sh -c "$INSTALL_CMD"
 
 # Check if the script succeeded
-if [[ $? -ne 0 ]]; then
-  echo "ERROR: 'pull.sh' script failed. Exiting."
+if [ "$?" -ne 0 ]; then
+  echo "ERROR: 'install.sh' script failed. Exiting."
   exit 1
 fi

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Install all Python packages in editable mode.
 
@@ -10,17 +10,15 @@ VERBOSE=false
 
 
 # Parse input parameters
-while [[ $# -gt 0 ]]; do
-  case $1 in
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     -p|--path)
       LOCAL_PATH="$2"
-      shift
-      shift
+      shift 2
       ;;
     -i|--ignore-regex)
       IGNORE_REGEX="$2"
-      shift
-      shift
+      shift 2
       ;;
     -v|--verbose)
       VERBOSE=true
@@ -54,40 +52,40 @@ done
 
 
 # Ensure pip is installed
-if ! command -v pip &> /dev/null; then
+if ! command -v pip >/dev/null 2>&1; then
   echo "ERROR: pip is not installed. Please install it and try again."
   exit 1
 fi
 
 
 # Install script dependencies
-if $VERBOSE; then
+if [ "$VERBOSE" = true ]; then
   pip install packaging
 else
-  pip install packaging > /dev/null 2>&1
+  pip install packaging >/dev/null 2>&1
 fi
 
 
-# Run the python script `install.py` located next to this file,
-# and pass input arguments --path, --ignore-regex, and --verbose
-SCRIPT_DIR="$(dirname "$0")"
+# Locate the Python script `install.py` and ensure it exists
+SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null || { echo "ERROR: Failed to determine the script's directory."; exit 1; }; pwd)
 PYTHON_SCRIPT="$SCRIPT_DIR/install.py"
 
-if [[ ! -f "$PYTHON_SCRIPT" ]]; then
+if [ ! -f "$PYTHON_SCRIPT" ]; then
   echo "ERROR: The Python script 'install.py' is not found in the directory: $SCRIPT_DIR"
   exit 1
 fi
 
+# Construct the Python script command
 COMMAND="python \"$PYTHON_SCRIPT\" --path \"$LOCAL_PATH\""
-if [[ -n "$IGNORE_REGEX" ]]; then
+if [ -n "$IGNORE_REGEX" ]; then
   COMMAND="$COMMAND --ignore-regex \"$IGNORE_REGEX\""
 fi
-if $VERBOSE; then
+if [ "$VERBOSE" = true ]; then
   COMMAND="$COMMAND --verbose"
 fi
 
 # Execute the Python script
-eval "$COMMAND"
+sh -c "$COMMAND"
 
 
 # Install third-party package dependencies
