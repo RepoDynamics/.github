@@ -12,8 +12,8 @@
 # Default input arguments
 OWNER="RepoDynamics"
 LOCAL_PATH="$(pwd)"
-NO_ARCHIVED=""
-SOURCE=""
+NO_ARCHIVED="--no-archived"
+SOURCE="--source"
 IGNORE_REGEX=""
 PULL=true
 VERBOSE=false
@@ -37,12 +37,12 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
-    -a|--no-archived)
-      NO_ARCHIVED="--no-archived"
+    -a|--archived)
+      NO_ARCHIVED=""
       shift
       ;;
-    -s|--source)
-      SOURCE="--source"
+    -f|--fork)
+      SOURCE=""
       shift
       ;;
     -n|--no-pull)
@@ -69,8 +69,8 @@ the remote repository is pulled and rebased into the existing local clone."
       echo "Options:"
       echo "  -o, --owner         GitHub organization or user account (default: RepoDynamics)"
       echo "  -i, --ignore-regex  Regex pattern to ignore repositories by name"
-      echo "  -a, --no-archived   Exclude archived repositories (default: false)"
-      echo "  -s, --source        Exclude forked repositories (default: false)"
+      echo "  -a, --archived      Include archived repositories (default: false)"
+      echo "  -f, --fork          Include forked repositories (default: false)"
       echo "  -p, --path          Local directory path for cloning (default: current working directory)"
       echo "  -n, --no-pull       Disable pulling updates for existing repositories (default: false)"
       echo "  -v, --verbose       Enable verbose output (default: false)"
