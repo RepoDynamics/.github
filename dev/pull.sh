@@ -122,16 +122,18 @@ gh repo list "$OWNER" --limit 4000 $NO_ARCHIVED $SOURCE | while read -r repo _; 
   printf "%4d. %s\n" "$counter" "$repo_name"
   echo "---------------------------------------"
 
-  # Skip repositories that match the ignore regex
-  if [[ -n "$IGNORE_REGEX" && "$repo_name" =~ $IGNORE_REGEX ]]; then
+  # Skip repositories that match the ignore regex (case-insensitive)
+  if [[ -n "$IGNORE_REGEX" && "$repo_name" =~ (?i)$IGNORE_REGEX ]]; then
     echo "SKIP: Repository $repo matches the ignore regex."
     continue
   fi
 
-  if [[ -d "$repo" ]]; then
+  repo_lowercase="${repo,,}"
+
+  if [[ -d "$repo_lowercase" ]]; then
     echo "UPDATE: Updating existing repository: $repo"
     (
-      cd "$repo" || {
+      cd "$repo_lowercase" || {
         echo "WARNING: Failed to navigate to existing repository directory $repo. Skipping fetch and pull."
         exit
       }
@@ -159,7 +161,7 @@ gh repo list "$OWNER" --limit 4000 $NO_ARCHIVED $SOURCE | while read -r repo _; 
     )
   else
     echo "CLONE: $repo"
-    GIT_TERMINAL_PROMPT=0 gh repo clone "$repo" "$repo" -- $QUIET || echo "WARNING: Failed to clone $repo."
+    GIT_TERMINAL_PROMPT=0 gh repo clone "$repo" "$repo_lowercase" -- $QUIET || echo "WARNING: Failed to clone $repo."
   fi
 
 done
