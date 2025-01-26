@@ -1,7 +1,7 @@
 from __future__ import annotations as _annotations
 
 from typing import TYPE_CHECKING as _TYPE_CHECKING
-from pathlib import Path as _Path
+
 import copy as _copy
 from packaging.requirements import Requirement as _Req
 import pyserials as _ps
@@ -12,74 +12,30 @@ from loggerman import logger as _logger
 
 if _TYPE_CHECKING:
     from typing import Sequence, Literal
+    from pathlib import Path
 
 
-def from_directory(
-    path: str | _Path = "/Volumes/T7/Projects/GitHub Repos/RepoDynamics",
-    exclude: Sequence[str] | None = (
-        '_OrganizationRepo(.github)',
-        '.archived',
-        'BinderDocker',
-        'DocsMan',
-        'FixMan',
-        'MetaTemplates',
-        'PyPackIT',
-        'PyPackIT-Template',
-        'PyPackIT-Template(ORIG DATA)',
-        'SphinxDocs',
-    ),
-    rel_path_pyproject_default: str = "pyproject.toml",
-    rel_path_src_default: str = "src",
-    rel_path_pyproject: dict[str, str] | None = None,
-    rel_path_src: dict[str, str] | None = None,
-):
-    dirs = [d for d in _Path(path).iterdir() if d.is_dir()]
-    dir_names = [d.name for d in dirs]
-    for exclude_dir_name in (exclude or []):
-        if exclude_dir_name not in dir_names:
-            raise ValueError(
-                f"Directory name '{exclude_dir_name}' inputted as excluded directory does not exist."
-            )
-    selected_dirs = sorted([d for d in dirs if d.name not in exclude])
-    _logger.info(
-        "Selected Directories",
-        _logger.pretty([str(d) for d in selected_dirs], indent_size=2)
-    )
-    return OrgReposManager(
-        repo_paths=selected_dirs,
-        rel_path_pyproject_default=rel_path_pyproject_default,
-        rel_path_src_default=rel_path_src_default,
-        rel_path_pyproject=rel_path_pyproject,
-        rel_path_src=rel_path_src,
-    )
+class OrganizationManager:
 
-
-class OrgReposManager:
-
-    def __init__(
-        self,
-        repo_paths: Sequence[_Path],
-        rel_path_pyproject_default: str = "pyproject.toml",
-        rel_path_src_default: str = "src",
-        rel_path_pyproject: dict[str, str] | None = None,
-        rel_path_src: dict[str, str] | None = None,
-    ):
-        self._rel_path_pyproject_default = rel_path_pyproject_default
-        self._rel_path_src_default = rel_path_src_default
-        self._rel_path_pyproject = rel_path_pyproject or {}
-        self._rel_path_src = rel_path_src or {}
+    def __init__(self, pyprojects: dict[Path, dict]):
         self.projects: dict[str, dict] = {}
-        for path in repo_paths:
-            path_pyproject = path / self._rel_path_pyproject.get(path.name, self._rel_path_pyproject_default)
-            pyproject = _ps.read.toml_from_file(path_pyproject, as_dict=False)
+        for pyproject_path, pyproject in pyprojects.items():
             normalized_dist_name = _pdep.normalize_distribution_name(pyproject["project"]["name"])
             self.projects[normalized_dist_name] = {
-                "path": path,
-                "path_pyproject": path_pyproject,
+                "path_pyproject": pyproject_path,
                 "pyproject": pyproject,
                 "git": None,
             }
         return
+
+    def get_changed_projects(self) -> list[str]:
+        """Get the distribution name of projects with staged and unstaged changes in git."""
+        changed_projects = []
+        for dist_name, project in self.projects.items():
+            git = self.get_git(dist_name)
+            if git.has_changes():
+                changed_projects.append(self.get_name(dist_name))
+        return changed_projects
 
     def bump_pinned_dev_versions(
         self,
@@ -211,13 +167,10 @@ class OrgReposManager:
     def get_git(self, dist_name: str) -> _gittidy.Git:
         project = self.get_project(dist_name)
         if not project["git"]:
-            project["git"] = _gittidy.Git(path=self.get_path(dist_name), logger=_logger)
+            project["git"] = _gittidy.Git(path=self.get_pyproject_path(dist_name).parent, logger=_logger)
         return project["git"]
 
-    def get_path(self, dist_name: str) -> _Path:
-        return self.get_project(dist_name)["path"]
-
-    def get_pyproject_path(self, dist_name: str) -> _Path:
+    def get_pyproject_path(self, dist_name: str) -> Path:
         return self.get_project(dist_name)["path_pyproject"]
 
     def get_pyproject(self, dist_name: str):
@@ -234,12 +187,3 @@ class OrgReposManager:
 
     def get_name(self, dist_name: str):
         return self.get_pyproject(dist_name)["project"]["name"]
-
-    def get_changed_projects(self) -> list[str]:
-        """Get the distribution name of projects with staged and unstaged changes in git."""
-        changed_projects = []
-        for dist_name, project in self.projects.items():
-            git = self.get_git(dist_name)
-            if git.has_changes():
-                changed_projects.append(self.get_name(dist_name))
-        return changed_projects
