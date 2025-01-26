@@ -18,22 +18,26 @@ def main(path: str | Path, ignore_regex: str, pyproject_path: str = "pkg/pyproje
     }
 
     script_path = Path(__file__).parent
+    # Create requirements.txt file for local editable installs.
+    # These are then installed with 'pip install -r requirements.txt --no-deps'
+    # (see: https://github.com/pypa/pip/issues/7339, https://github.com/pypa/pip/pull/10837).
     int_reqs_path = script_path / "int_reqs.txt"
     int_reqs = "\n".join([f"-e '{pkg_path}'" for pkg_path in map_path_to_pyproject.keys()])
     int_reqs_path.write_text(int_reqs)
-    logger.debug(f"Local requirements.txt file:\n{int_reqs}")
+    logger.debug(f"Local requirements.txt file:\n\n{int_reqs}\n")
 
     glob = []
     for pyproject in map_path_to_pyproject.values():
         dep_specs, dep_names = _extract_dependencies_from_pyproject_data(pyproject)
-        logger.debug(f"Dependencies for {pyproject["project"]["name"]}:\n{"\n".join(dep_specs)}")
+        if dep_specs:
+            logger.debug(f"Dependencies for {pyproject["project"]["name"]}:\n\n{"\n".join(dep_specs)}\n")
         for spec, name in zip(dep_specs, dep_names):
             if name not in map_name_to_path and spec not in glob:
                 glob.append(spec)
     ext_reqs_path = script_path / "ext_reqs.txt"
     ext_reqs = "\n".join(glob)
     ext_reqs_path.write_text(ext_reqs)
-    logger.debug(f"Third-party requirements.txt file:\n{ext_reqs}")
+    logger.debug(f"Third-party requirements.txt file:\n\n{ext_reqs}\n")
     return
 
 

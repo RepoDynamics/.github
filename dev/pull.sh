@@ -18,6 +18,7 @@ IGNORE_REGEX=""
 PULL=true
 VERBOSE=false
 
+echo ""
 
 # Parse input parameters
 while [ "$#" -gt 0 ]; do
@@ -113,7 +114,7 @@ fi
 # Max `--limit` is 4000.
 # Reference: https://cli.github.com/manual/gh_repo_list
 counter=0
-gh repo list "$OWNER" --limit 4000 $NO_ARCHIVED $SOURCE | while IFS= read -r repo_line; do
+gh repo list "$OWNER" --limit 1000 $NO_ARCHIVED $SOURCE | while IFS= read -r repo_line; do
 
   repo=$(echo "$repo_line" | awk '{print $1}')
   # Extract repository name from the full repo identifier (org/repo_name)

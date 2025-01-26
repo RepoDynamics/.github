@@ -16,6 +16,7 @@ IGNORE_REGEX=""
 PULL=true
 VERBOSE=false
 
+echo ""
 
 # Parse input parameters
 while [ "$#" -gt 0 ]; do
@@ -80,6 +81,8 @@ done
 
 
 # Run `pull.sh`
+echo "A) Clone/Pull"
+echo "=============\n\n"
 SCRIPT_DIR=$(cd "$(dirname "$0")" || { echo "ERROR: Failed to determine script directory."; exit 1; }; pwd)
 PULL_SCRIPT="$SCRIPT_DIR/pull.sh"
 
@@ -107,6 +110,8 @@ fi
 
 
 # Run `install.sh`
+echo "\n\nB) Installation"
+echo "===============\n\n"
 INSTALL_SCRIPT="$SCRIPT_DIR/install.sh"
 
 if [ ! -f "$INSTALL_SCRIPT" ]; then

@@ -8,6 +8,7 @@ LOCAL_PATH="$(pwd)"
 IGNORE_REGEX=""
 VERBOSE=false
 
+echo ""
 
 # Parse input parameters
 while [ "$#" -gt 0 ]; do
@@ -89,16 +90,16 @@ sh -c "$COMMAND"
 
 
 # Install third-party package dependencies
-echo "Install third-party dependencies:"
-echo "================================="
+echo "\n\nInstall third-party dependencies:"
+echo "=================================\n"
 EXT_REQS_PATH="$SCRIPT_DIR/ext_reqs.txt"
 pip install -r "$EXT_REQS_PATH"
 rm -f "$EXT_REQS_PATH"
 
 
 # Install local packages in editable mode
-echo "Install local packages:"
-echo "======================="
+echo "\n\nInstall local packages:"
+echo "=======================\n"
 INT_REQS_PATH="$SCRIPT_DIR/int_reqs.txt"
 pip install -r "$INT_REQS_PATH" --no-deps
 rm -f "$INT_REQS_PATH"
