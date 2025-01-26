@@ -74,6 +74,7 @@ the remote repository is pulled and rebased into the existing local clone."
       echo "  -p, --path          Local directory path for cloning (default: current working directory)"
       echo "  -n, --no-pull       Disable pulling updates for existing repositories (default: false)"
       echo "  -v, --verbose       Enable verbose output (default: false)"
+      echo "  -h, --help          Show this dialog and exit."
       exit 0
       ;;
     *)
