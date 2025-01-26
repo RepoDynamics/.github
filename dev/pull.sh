@@ -48,15 +48,16 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -h|--help)
+      echo "---------------------------------------"
       echo "Get repositories from a GitHub account."
       echo "---------------------------------------"
       echo "This script finds all repositories in a GitHub account, \
-      and syncs them with a local clone. For a given local directory path, \
-      the script looks for repositories under 'owner-name/repo-name', \
-      where 'owner-name' is the GitHub account and 'repo-name' is the name \
-      of a repository in that account. If such directory doesn't exist, \
-      then the GitHub repository is cloned into that path. Otherwise, \
-      the remote repository is pulled and rebased into the existing local clone."
+and syncs them with a local clone. For a given local directory path, \
+the script looks for repositories under 'owner-name/repo-name', \
+where 'owner-name' is the GitHub account and 'repo-name' is the name \
+of a repository in that account. If such directory doesn't exist, \
+then the GitHub repository is cloned into that path. Otherwise, \
+the remote repository is pulled and rebased into the existing local clone."
       echo "-------------------"
       echo "Usage: $0 [options]"
       echo "Options:"
